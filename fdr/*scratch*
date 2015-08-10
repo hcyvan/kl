@@ -1,0 +1,4 @@
+(setq a '(1 2 3))
+a
+(memq 0 a)
+(memq 1 a)
