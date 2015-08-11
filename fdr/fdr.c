@@ -8,13 +8,15 @@
 #include <linux/kernel.h>
 #include <asm/uaccess.h>
 
+#include "fdr.h"
+
 MODULE_LICENSE("Dual BSD/GPL");
 
 #define FDR_MAJOR 0
 #define FDR_MINOR 0
 
 #define QSET 1000
-#define QUANTUM 3000
+#define QUANTUM 4000
 
 int fdr_major = FDR_MAJOR;
 int fdr_minor = FDR_MINOR;
@@ -74,9 +76,12 @@ ssize_t fdr_read(struct file *filp, char __user *buf, size_t count,
 	int itemsize = qset * quantum;
 	int item, rest, qset_item, qset_rest;
 	int ret = 0;
+	PDEBUG("In fdr_read\n");
 
-	if (*fpos > dev->size)
+	if (*fpos > dev->size) {
+		PDEBUG("*fops is over dev->size\n");
 		goto nothing;
+	}
 	if (count > dev->size - *fpos)
 		count = dev->size - *fpos;
 	
@@ -87,29 +92,86 @@ ssize_t fdr_read(struct file *filp, char __user *buf, size_t count,
 	qset_rest = rest % quantum;
 	/* Go along dev list */
 	dptr = scullv_follow(dev, item);
-	if (!dptr->data)
+	if (!dptr->data) {
+		PDEBUG("data feild of fdr_dev is null\n");
 		goto nothing;
-	if (!dptr->data[qset_item])
+	}
+	if (!dptr->data[qset_item]) {
+		PDEBUG("The last quantum is not exist\n");
 		goto nothing;
+	}
 	if (count > quantum - qset_rest)
 		count = quantum - qset_rest;
 	/* Cope to user-space */
 	if (copy_to_user (buf, dptr->data[qset_item]+qset_rest, count)) {
 		ret = -EFAULT;
+		PDEBUG("copy_to_user fail\n");
 		goto nothing;
 	}
 //	up (&dev->sem);
 
 	*fpos += count;
+	PDEBUG("fdr_read ok\n");
 	return count;
 
 nothing:
+	PDEBUG("fdr_read fail\n");
 	return ret;
 }
+
+ssize_t fdr_write(struct file *filp, const char __user *buf, size_t count,
+		  loff_t *fpos)
+{
+	struct fdr_dev *dev = filp->private_data;
+	struct fdr_dev *dptr;
+	int qset = dev->qset;
+	int quantum = dev->quantum;
+	int itemsize = qset * quantum;
+	int item, rest, qset_item, qset_rest;
+	int ret = -ENOMEM;
+	PDEBUG("i'm fdr_write\n");
+
+	/* Translate *fpos to the address of dev's data */
+	item = ((long) *(fpos)) / itemsize;
+	rest = ((long) *(fpos)) % itemsize;
+	qset_item = rest / quantum;
+	qset_rest = rest % quantum;
+	/* Go along dev list */
+	dptr = scullv_follow(dev, item);
+	/* Ensure the set of quantum pointers */
+	if (!dptr->data) {
+		dptr->data = kmalloc(qset * sizeof(void *), GFP_KERNEL);
+		if (!dptr->data)
+			goto nomem;
+		memset(dptr->data, 0, qset * sizeof(void *));
+	}
+	/* Malloc the last quantum */
+	if (!dptr->data[qset_item]) {
+		dptr->data[qset_item] = (void *)kmalloc(QUANTUM, GFP_KERNEL);
+		if (!dptr->data[qset_item])
+			goto nomem;
+		memset(dptr->data[qset_item], 0, QUANTUM);
+	}
+	if (copy_from_user(dptr->data[qset_item]+qset_rest, buf, count)){
+		ret = -EFAULT;
+		goto nomem;
+	}
+	*fpos += count;
+
+	if (dev->size < *fpos)
+		dev->size = *fpos;
+	PDEBUG("fdr_write ok\n");
+	return count;
+nomem:
+	PDEBUG("fdr_write fail\n");
+	return ret;
+}
+	
 
 struct file_operations fdr_fops = {
 	.owner =THIS_MODULE,
 	.read =	fdr_read,
+	.write = fdr_write,
 	.open =	fdr_open,
 	.release = fdr_release,
 };

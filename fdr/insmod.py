@@ -1,9 +1,15 @@
 #!/usr/bin/python
+'''
+This is a script for this laboratory library.
+
+Usage:
++ *sudo ./insmod.py -d* to do clean work
++ *sudo ./insmod.py 0 1 ...* to create devices, such as, navyfdr0, navyfdr1 ...
+'''
 import os
 import sys
 import re
 import string
-
         
 RM=False
 module='fdr'
@@ -21,12 +27,11 @@ def mknodDev(device, minor):
     major=regexp.search(devs).group(1)
     # make inode for the device
     os.system(r'mknod /dev/%s%d c %s %d'%(device, minor, major, minor))
-    os.system(r'chgrp staff /dev/%s%d'%(device, minor))
+    os.system(r'chown navy /dev/%s%d'%(device, minor))
     os.system(r'chmod %s /dev/%s%d'%(mode, device, minor)) 
 
 OPRATOR=set(['d'])
 args=[]
-
 if len(sys.argv)>1:
     args=sys.argv[1:]
     minor=[]
@@ -36,8 +41,6 @@ for i in range(len(args)):
     else:
         minor.append(string.atoi(args[i]))
 
-
-        
 # rm the module
 if not os.system('lsmod |grep %s > /dev/null'%module):
     os.system('rmmod %s'%module)
@@ -46,8 +49,12 @@ if not os.system('ls /dev | grep %s > /dev/null'%device):
     os.system("rm -f /dev/%s*"%device)
 
 if RM==False:
+    # make
+    os.system('make')
     # insmod the moudle
     os.system("insmod %s.ko"%module)
 
     for m in minor:
         mknodDev(device, m)
+else:
+    os.system('make clean')
