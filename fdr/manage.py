@@ -16,7 +16,13 @@ def mknodDev(device, minor):
     # make inode for the device
     os.system(r'mknod /dev/%s%d c %s %d'%(device, minor, major, minor))
     os.system(r'chown navy /dev/%s%d'%(device, minor))
-    os.system(r'chmod %s /dev/%s%d'%(mode, device, minor)) 
+    os.system(r'chmod 644 /dev/%s%d'%(device, minor))
+
+def fresh_mod(module_ko):
+    module=module_ko.split('.')[0]
+    if not os.system('lsmod | grep %s > /dev/null'%module):
+        os.system('rmmod %s'%module)
+    os.system("insmod %s"%module_ko)
 
 if __name__ == '__main__':
     # Global Variable
@@ -36,6 +42,9 @@ if __name__ == '__main__':
     parser_install = subparsers.add_parser('install', #aliases=['in'],
                                            help='install module and device.')
     parser_install.add_argument('module',help="the kernel module to insmod")
+    parser_install.add_argument('-f', '--fresh', action='store_true',
+                                help='if the module is currently loaded, rmmod \
+                                it, and insmod it again.')
     parser_install.add_argument('-n', '--node',
                                 nargs='?', const=default_node,
                                 help='mknod for the kernel module')
@@ -52,7 +61,11 @@ if __name__ == '__main__':
 
     if args.subparser_name == 'install':
         # insmod
-        os.system("insmod %s"%args.module)
+        if args.fresh:
+            # -f
+            fresh_mod(args.module)
+        else:
+            os.system("insmod %s"%args.module)
         # mknod
         if args.node:
             for m in args.minor:
@@ -61,6 +74,7 @@ if __name__ == '__main__':
         if args.module:
             os.system('rmmod %s'%args.module)
         if not os.system('ls /dev | grep %s > /dev/null'%default_node):
+            print("rm -f /dev/%s*"%default_node)
             os.system("rm -f /dev/%s*"%default_node)
     else:
         parser.print_help()
