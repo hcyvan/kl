@@ -9,10 +9,9 @@ else
 endif
 ccflags-y += $(DEBFLAGS)
 
-
-
 ifneq ($(KERNELRELEASE),)
 	obj-m := fdr.o
+	fdr-y := main.o proc.o
 else
 	KDIR ?= /home/navy/build
 	PWD=$(shell pwd)

@@ -1,7 +1,8 @@
 #ifndef _FDR_H_
 #define _FDR_H_
 
-//#define FDR_DEBUG
+#include <linux/seq_file.h>
+#include <linux/proc_fs.h>
 
 #undef PDEBUG
 #ifdef FDR_DEBUG
@@ -17,4 +18,7 @@
 #undef PDEBUGG
 #define PDEBUGG(fmt, args...) /* nothing: it's a placeholder */ 
 
+/* proc.c */
+extern int proc_setup(void);
 #endif
+

@@ -1,5 +1,5 @@
 ifneq ($(KERNELRELEASE),)
-	obj-m := smd.o
+	obj-m := proc_sequence.o
 else
 	KDIR ?= /home/navy/build
 	PWD=$(shell pwd)

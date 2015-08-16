@@ -37,15 +37,11 @@ struct fdr_dev {
 
 int fdr_open(struct inode *inodp, struct file *filp)
 {
-
 	struct fdr_dev *dev;
-
 	dev = container_of(inodp->i_cdev, struct fdr_dev, cdev);
 	filp->private_data = dev;
 
-//	filp->private_data = &fdr_cdev;
 	/* scull_trim()???? */
-
 	return 0;
 }
 int fdr_release(struct inode *inodp, struct file *filp)
@@ -218,6 +214,8 @@ static int __init hello_init(void)
 	for (i = 0; i < nr_devs; i++)
 		fdr_setup_cdev(fdr_devices + i, i);
 
+	/* Create /proc entry */
+	proc_setup();
 	
 	printk(KERN_ALERT "my first dirver init\n");
        	return 0;
