@@ -11,7 +11,7 @@ ccflags-y += $(DEBFLAGS)
 
 ifneq ($(KERNELRELEASE),)
 	obj-m := fdr.o
-	fdr-y := main.o proc.o
+	fdr-y := main.o proc.o fop.o
 else
 	KDIR ?= /home/navy/build
 	PWD=$(shell pwd)
