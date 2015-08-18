@@ -112,7 +112,6 @@ ssize_t fdr_write(struct file *filp, const char __user *buf, size_t count,
 	int itemsize = qset * quantum;
 	int item, rest, qset_item, qset_rest;
 	int ret = -ENOMEM;
-	PDEBUG("i'm fdr_write\n");
 
 	/* Translate *fpos to the address of dev's data */
 	item = ((long) *(fpos)) / itemsize;
@@ -135,15 +134,28 @@ ssize_t fdr_write(struct file *filp, const char __user *buf, size_t count,
 			goto nomem;
 		memset(dptr->data[qset_item], 0, QUANTUM);
 	}
-	if (copy_from_user(dptr->data[qset_item]+qset_rest, buf, count)){
-		ret = -EFAULT;
-		goto nomem;
-	}
-	*fpos += count;
 
+	if (count <= QUANTUM - qset_rest) {
+		if (copy_from_user(dptr->data[qset_item]+qset_rest, buf, count)){
+			ret = -EFAULT;
+			goto nomem;
+		}
+		*fpos += count;
+		PDEBUG("fdr_write: %d bytes\n", (int)count);
+	} else {
+		if (copy_from_user(dptr->data[qset_item]+qset_rest, buf,
+				   QUANTUM - qset_rest)){
+			ret = -EFAULT;
+			goto nomem;
+		}
+		PDEBUG("fdr_write: %d bytes\n", (int)(QUANTUM - qset_rest));
+		*fpos += QUANTUM - qset_rest;
+		buf = buf + QUANTUM - qset_rest;
+		fdr_write(filp, buf, count - QUANTUM + qset_rest, fpos);
+	}
+		
 	if (dev->size < *fpos)
 		dev->size = *fpos;
-	PDEBUG("fdr_write ok\n");
 	return count;
 nomem:
 	PDEBUG("fdr_write fail\n");
