@@ -36,7 +36,7 @@ static int fdr_seq_show(struct seq_file *s, void *v)
 		PDEBUG("fdr_seq_show : no data");
 		return 0;
 	}
-	while (spos->data[i]) {
+	while (spos->data[i] && i < QSET) {
 		seq_printf(s, "%s", (char *)(spos->data[i]));
 		i++;
 	}
