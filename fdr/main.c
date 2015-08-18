@@ -12,12 +12,6 @@
 
 MODULE_LICENSE("Dual BSD/GPL");
 
-#define FDR_MAJOR 0
-#define FDR_MINOR 0
-
-#define QSET 1000
-#define QUANTUM 4000
-
 int fdr_major = FDR_MAJOR;
 int fdr_minor = FDR_MINOR;
 
@@ -25,15 +19,8 @@ dev_t dev_num;
 int nr_devs = 4;    /* number of dev */
 
 struct cdev *my_cdev;
-struct fdr_dev {
-	struct cdev cdev;	/* embed */
-	int qset;		/* the length of the quantum-pointer array */
-	int quantum;		/* The size of quantum */
-	size_t size;		/* The size of data */
-	struct fdr_dev *next;
-	void **data;
-	
-} *fdr_devices;
+struct fdr_dev *fdr_devices;
+extern struct file_operations fdr_proc_fops;
 
 int fdr_open(struct inode *inodp, struct file *filp)
 {
@@ -215,10 +202,18 @@ static int __init hello_init(void)
 		fdr_setup_cdev(fdr_devices + i, i);
 
 	/* Create /proc entry */
-	proc_setup();
-	
+	if (!proc_create("fdr", 0, NULL, &fdr_proc_fops)) {
+		/* err = ??? */
+		goto proc_fail;
+	}
 	printk(KERN_ALERT "my first dirver init\n");
        	return 0;
+
+	
+proc_fail:
+	for (i = 0; i < nr_devs; i++)
+	  	cdev_del(&fdr_devices[i].cdev);
+	kfree(fdr_devices);
 fail:
 	unregister_chrdev_region(dev_num, nr_devs);
 	return err;
@@ -227,6 +222,7 @@ fail:
 static void __exit hello_exit(void)
 {
 	int i;
+	remove_proc_entry("fdr", NULL);
 	for (i = 0; i < nr_devs; i++)
 	  	cdev_del(&fdr_devices[i].cdev);
 	kfree(fdr_devices);
