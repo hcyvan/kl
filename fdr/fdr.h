@@ -12,6 +12,8 @@
 #include <linux/device.h>
 #include <linux/kernel.h>
 #include <asm/uaccess.h>
+#include <linux/semaphore.h>
+#include <linux/delay.h>
 
 #undef PDEBUG
 #ifdef FDR_DEBUG
@@ -39,7 +41,8 @@ extern int proc_setup(void);
 #define QUANTUM 4000
 
 struct fdr_dev {
-	struct cdev cdev;	/* embed */
+	struct cdev cdev;
+	struct semaphore sem;
 	int qset;		/* the length of the quantum-pointer array */
 	int quantum;		/* The size of quantum */
 	size_t size;		/* The size of data */

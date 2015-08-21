@@ -24,6 +24,7 @@ static void fdr_setup_cdev(struct fdr_dev *dev, int index)
 	dev->cdev.ops = &fdr_fops;
 	dev->qset = QSET;	/* The length of quantum-pointer array */
 	dev->quantum = QUANTUM;	/* The size of successive memory unit */
+	sema_init(&dev->sem, 1); /* semaphore init */
 	err = cdev_add (&dev->cdev, devno, 1);
 	/* Fail gracefully if need be */
 	if (err)

@@ -38,6 +38,9 @@ ssize_t fdr_read(struct file *filp, char __user *buf, size_t count,
 	int ret = 0;
 	PDEBUG("In fdr_read\n");
 
+	if (down_interruptible(&dev->sem))
+		return -ERESTARTSYS;
+ 
 	if (*fpos > dev->size) {
 		PDEBUG("*fops is over dev->size\n");
 		goto nothing;
@@ -68,8 +71,7 @@ ssize_t fdr_read(struct file *filp, char __user *buf, size_t count,
 		PDEBUG("copy_to_user fail\n");
 		goto nothing;
 	}
-//	up (&dev->sem);
-
+	up (&dev->sem);
 	*fpos += count;
 	PDEBUG("fdr_read ok\n");
 	return count;
@@ -90,6 +92,9 @@ ssize_t fdr_write(struct file *filp, const char __user *buf, size_t count,
 	int item, rest, qset_item, qset_rest;
 	int ret = -ENOMEM;
 
+	if (down_interruptible(&dev->sem))
+		return -ERESTARTSYS;
+
 	/* Translate *fpos to the address of dev's data */
 	item = ((long) *(fpos)) / itemsize;
 	rest = ((long) *(fpos)) % itemsize;
@@ -101,21 +106,21 @@ ssize_t fdr_write(struct file *filp, const char __user *buf, size_t count,
 	if (!dptr->data) {
 		dptr->data = kmalloc(qset * sizeof(void *), GFP_KERNEL);
 		if (!dptr->data)
-			goto nomem;
+			goto out;
 		memset(dptr->data, 0, qset * sizeof(void *));
 	}
 	/* Malloc the last quantum */
 	if (!dptr->data[qset_item]) {
 		dptr->data[qset_item] = (void *)kmalloc(QUANTUM, GFP_KERNEL);
 		if (!dptr->data[qset_item])
-			goto nomem;
+			goto out;
 		memset(dptr->data[qset_item], 0, QUANTUM);
 	}
 
 	if (count <= QUANTUM - qset_rest) {
 		if (copy_from_user(dptr->data[qset_item]+qset_rest, buf, count)){
 			ret = -EFAULT;
-			goto nomem;
+			goto out;
 		}
 		*fpos += count;
 		PDEBUG("fdr_write: %d bytes\n", (int)count);
@@ -123,7 +128,7 @@ ssize_t fdr_write(struct file *filp, const char __user *buf, size_t count,
 		if (copy_from_user(dptr->data[qset_item]+qset_rest, buf,
 				   QUANTUM - qset_rest)){
 			ret = -EFAULT;
-			goto nomem;
+			goto out;
 		}
 		PDEBUG("fdr_write: %d bytes\n", (int)(QUANTUM - qset_rest));
 		*fpos += QUANTUM - qset_rest;
@@ -133,9 +138,10 @@ ssize_t fdr_write(struct file *filp, const char __user *buf, size_t count,
 		
 	if (dev->size < *fpos)
 		dev->size = *fpos;
-	return count;
-nomem:
-	PDEBUG("fdr_write fail\n");
+	ret = count;
+//	mdelay(1000);
+out:
+	up(&dev->sem);
 	return ret;
 }
 	
