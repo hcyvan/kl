@@ -1,6 +1,5 @@
 ifneq ($(KERNELRELEASE),)
-	hostprogs-y := prog
-	always := $(hostprogs-y)
+	obj-m := prog.o
 else
 	KDIR ?= /home/navy/build
 	PWD=$(shell pwd)
